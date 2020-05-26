@@ -1,18 +1,23 @@
+import logging
 import random
+import csv
 
 import requests
 from tabulate import tabulate
+
 import database
 
 categories_url = {
     'JeopardyGame': 'https://jservice.io/api/categories?count={count}&offset={offset}',
     'TriviaGame': 'https://opentdb.com/api_category.php',
-    'CustomGame': 'db'
+    'DatabaseGame': 'db',
+    'CustomGame': 'csv'
 }
 category_url = {
     'JeopardyGame': 'https://jservice.io/api/category?id={id}',
     'TriviaGame': 'https://opentdb.com/api.php?amount={amount}&category={category_id}&difficulty={difficulty}',
-    'CustomGame': 'db'
+    'DatabaseGame': 'db',
+    'CustomGame': 'csv'
 }
 
 category_count = 5
@@ -69,7 +74,7 @@ class JeopardyGame(Game):
             r_cat = requests.get(
                 self.categories_url.format(count=category_count - len(self.categories),
                                            offset=random.randint(1, 500)))
-            print('made web request')
+            logging.debug('made web request')
 
             if r_cat.status_code <= 399:
                 data = r_cat.json()
@@ -92,9 +97,9 @@ class JeopardyGame(Game):
 
                         if len(full_category['clues']) == len(supported_values):
                             self.categories.append(full_category)
-                            print('added category', full_category['title'])
+                            logging.debug('added category', full_category['title'])
                         else:
-                            print('skipped category', full_category['title'])
+                            logging.debug('skipped category', full_category['title'])
                     else:
                         raise ConnectionError()
             else:
@@ -117,7 +122,7 @@ class TriviaGame(Game):
             categories.sort(key=lambda e: e['id'])
             for category in categories:
                 category['clues'] = list()
-                print('adding category', category['name'])
+                logging.debug('adding category', category['name'])
                 category['title'] = category['name']
                 for diff in TriviaGame.category_config.keys():
                     cr = requests.get(self.category_url.format(category_id=category['id'],
@@ -131,7 +136,7 @@ class TriviaGame(Game):
                 self.categories.append(category)
 
 
-class CustomGame(Game):
+class DatabaseGame(Game):
     def get_new_categories(self):
         categories = random.sample(database.get_categories(), k=category_count)
         categories.sort(key=lambda e: e['id'])
@@ -142,8 +147,37 @@ class CustomGame(Game):
             self.categories.append(category)
 
 
+class CustomGame(Game):
+
+    def __init__(self, game_id, csv_attachment_url):
+        self.csv_attachment_url = csv_attachment_url
+        super().__init__(game_id)
+
+    def get_new_categories(self):
+        request_data = requests.get(self.csv_attachment_url)
+        if request_data.status_code <= 399:
+
+            csv_data = request_data.text.strip().split('\n')
+
+            rows = csv.reader(csv_data, delimiter=';')
+
+            csv_list = [r for r in rows]
+
+            categories = [r[0] for r in csv_list]
+            categories = random.sample(list(dict.fromkeys(categories)), k=category_count)
+            categories = [{'title': c, 'clues': list()} for c in categories]
+            categories.sort(key=lambda c: c['title'])
+
+            for category in categories:
+                for q in csv_list:
+                    if q[0] == category['title']:
+                        question = {'question': q[1], 'answer': q[2], 'value': int(q[3])}
+                        category['clues'].append(question)
+                self.categories.append(category)
+
+
 if __name__ == '__main__':
-    j = CustomGame(1)
+    j = DatabaseGame(1)
 
     print(j.get_new_question(0, 600))
     print(j.get_answer())
