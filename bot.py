@@ -28,7 +28,7 @@ async def on_ready():
 
 
 @bot.command(name='start', help='Starts a game of jeopardy')
-async def start(ctx, data_source: str):
+async def start(ctx, data_source='trivia'):
     if ctx.guild.id not in games:
         await ctx.send('welcome to jeopardy discord edition, please give me a second to gather some clues...')
         games[ctx.guild.id] = dict()
