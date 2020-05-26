@@ -1,11 +1,13 @@
 import os
 import re
 
+import requests
 from discord import DiscordException
 from discord.ext import commands
+import logging
 
 import database
-from jeopardy import JeopardyGame, TriviaGame, CustomGame
+from jeopardy import JeopardyGame, TriviaGame, DatabaseGame, CustomGame
 
 TOKEN = os.getenv('DISCORD_TOKEN')
 
@@ -24,12 +26,13 @@ bot = commands.Bot(command_prefix='!')
 
 @bot.event
 async def on_ready():
-    print(f'{bot.user.name} has connected to Discord!')
+    logging.info(f'{bot.user.name} has connected to Discord!')
 
 
 @bot.command(name='start', help='Starts a game of jeopardy')
 async def start(ctx, data_source='trivia'):
     if ctx.guild.id not in games:
+        
         await ctx.send('welcome to jeopardy discord edition, please give me a second to gather some clues...')
         games[ctx.guild.id] = dict()
 
@@ -37,10 +40,21 @@ async def start(ctx, data_source='trivia'):
             game = JeopardyGame(ctx.guild.id)
         elif data_source.lower() == 'trivia':
             game = TriviaGame(ctx.guild.id)
+        elif data_source.lower() == 'database':
+            game = DatabaseGame(ctx.guild.id)
         elif data_source.lower() == 'custom':
-            game = CustomGame(ctx.guild.id)
+
+            attachments = ctx.message.attachments
+
+            if len(attachments) > 0:
+                game = CustomGame(ctx.guild.id, attachments[0].url)
+            else:
+                await ctx.send('Please provide a csv file with the questions')
+                return
         else:
             raise DiscordException()
+
+        logging.info('starting new game in guild {} with data_source {}'.format(ctx.guild.id, data_source.lower()))
 
         games[ctx.guild.id]['game'] = game
         games[ctx.guild.id]['players'] = list()
@@ -63,6 +77,7 @@ async def enter(ctx):
         if ctx.author.name not in [p['name'] for p in games[ctx.guild.id]['players']]:
             games[ctx.guild.id]['players'].append({'name': ctx.author.name, 'points': 0})
             message = 'Welcome to the game {player}!'.format(player=ctx.author.name)
+            logging.debug('player {} joined the game {}'.format(ctx.author.name, ctx.guild.id))
         else:
             message = 'You are already registered, {player}.'.format(player=ctx.author.name)
 
@@ -124,11 +139,13 @@ async def give_answer(ctx, player_answer: str):
 
                 message = "That's correct! You earned {points} points.\nYou have {total} points in total!".format(
                     points=points, total=total)
+                games[ctx.guild.id]['objection_possible'] = False
             else:
                 message = 'Your not quite right. The correct answer would be:\n' + answer
+                games[ctx.guild.id]['objection_possible'] = True
 
             games[ctx.guild.id]['active_player'] = None
-            games[ctx.guild.id]['objection_possible'] = True
+
             database.save_state_to_db(ctx.guild.id, games[ctx.guild.id])
 
         elif games[ctx.guild.id]['active_player'] is not None:
@@ -173,7 +190,8 @@ async def get_points(ctx):
 @bot.command(name='end', help='end the game')
 async def end(ctx):
     if ctx.guild.id in games:
-        message = 'Okay ending your game...'
+        message = 'Ending your game now...'
+        await get_points(ctx)
         del games[ctx.guild.id]
         database.delete_game_from_db(ctx.guild.id)
     else:
@@ -204,6 +222,13 @@ async def objection(ctx):
         message = no_game_running
 
     await ctx.send(message)
+
+
+@bot.command(name='upload')
+async def upload(ctx):
+    att_url = ctx.message.attachments[0].url
+    file = requests.get(att_url)
+    print(file.content)
 
 
 def answer_filter(answer):
