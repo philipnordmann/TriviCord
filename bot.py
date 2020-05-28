@@ -1,10 +1,10 @@
+import logging
 import os
 import re
 
 import requests
 from discord import DiscordException
 from discord.ext import commands
-import logging
 
 import database
 from jeopardy import JeopardyGame, TriviaGame, DatabaseGame, CustomGame
@@ -32,7 +32,7 @@ async def on_ready():
 @bot.command(name='start', help='Starts a game of jeopardy')
 async def start(ctx, data_source='trivia'):
     if ctx.guild.id not in games:
-        
+
         await ctx.send('welcome to jeopardy discord edition, please give me a second to gather some clues...')
         games[ctx.guild.id] = dict()
 
@@ -71,7 +71,7 @@ async def start(ctx, data_source='trivia'):
     await ctx.send(message)
 
 
-@bot.command(name='enter', help='get the current board')
+@bot.command(name='enter', help='enter the game')
 async def enter(ctx):
     if ctx.guild.id in games:
         if ctx.author.name not in [p['name'] for p in games[ctx.guild.id]['players']]:

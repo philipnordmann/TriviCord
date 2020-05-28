@@ -1,6 +1,7 @@
+import csv
+import html
 import logging
 import random
-import csv
 
 import requests
 from tabulate import tabulate
@@ -131,8 +132,19 @@ class TriviaGame(Game):
                     cr_data = cr.json()
                     for clue in cr_data['results']:
                         value = supported_values[len(category['clues'])]
+
+                        answers = clue['incorrect_answers']
+                        answers.append(clue['correct_answer'])
+
+                        random.shuffle(answers)
+
+                        question = clue['question'] + '\n'
+                        question += 'Possible answers:\n'
+                        question += '\n'.join(['  - {}'.format(a) for a in answers])
+
                         category['clues'].append(
-                            {'question': clue['question'], 'answer': clue['correct_answer'], 'value': value})
+                            {'question': html.unescape(question), 'answer': html.unescape(clue['correct_answer']),
+                             'value': value})
                 self.categories.append(category)
 
 
