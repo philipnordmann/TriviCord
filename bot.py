@@ -224,13 +224,6 @@ async def objection(ctx):
     await ctx.send(message)
 
 
-@bot.command(name='upload')
-async def upload(ctx):
-    att_url = ctx.message.attachments[0].url
-    file = requests.get(att_url)
-    print(file.content)
-
-
 def answer_filter(answer):
     for regex, sub in answer_regex_filter:
         answer = regex.sub(sub, answer)
