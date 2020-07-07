@@ -31,6 +31,5 @@ Every command starts with ! and some have parameters.
 ```
 
 ## Do it on your own
-The bot will save the states of games to a local sqlite database.
+The bot will save the states of games to a local sqlite database or a mongodb instance.
 That also can contain questions that you can use as data source in start command.
-Currently planned is to extend the tool with more database options and converting it to stateless operation.
