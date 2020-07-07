@@ -2,12 +2,13 @@ import logging
 import os
 import re
 
-import requests
 from discord import DiscordException
 from discord.ext import commands
 
-import database
+# import database
 from jeopardy import JeopardyGame, TriviaGame, DatabaseGame, CustomGame
+
+from mongo import MongoInstance
 
 TOKEN = os.getenv('DISCORD_TOKEN')
 
@@ -23,6 +24,7 @@ games = dict()
 
 bot = commands.Bot(command_prefix='!')
 
+database = None
 
 @bot.event
 async def on_ready():
@@ -237,5 +239,7 @@ def init_games():
 
 
 if __name__ == '__main__':
+    global database
+    database = MongoInstance()
     init_games()
     bot.run(TOKEN)
