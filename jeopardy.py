@@ -6,7 +6,7 @@ import random
 import requests
 from tabulate import tabulate
 
-import database
+import sqlite
 
 categories_url = {
     'JeopardyGame': 'https://jservice.io/api/categories?count={count}&offset={offset}',
@@ -150,11 +150,11 @@ class TriviaGame(Game):
 
 class DatabaseGame(Game):
     def get_new_categories(self):
-        categories = random.sample(database.get_categories(), k=category_count)
+        categories = random.sample(sqlite.get_categories(), k=category_count)
         categories.sort(key=lambda e: e['id'])
         for category in categories:
             for value in supported_values:
-                clue = random.choice(database.get_questions(category['id'], value))
+                clue = random.choice(sqlite.get_questions(category['id'], value))
                 category['clues'].append(clue)
             self.categories.append(category)
 
