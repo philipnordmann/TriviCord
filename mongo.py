@@ -29,7 +29,10 @@ class MongoInstance:
 
     def get_game(self, game_id):
         result = self.collection.find_one({'game_id': game_id}, {'_id': 0, 'game_id': 0})
-        return result['game']
+        if result:
+            return result['game']
+        else:
+            return None
 
     def save_game(self, game_id, game):
         ids = [c['game_id'] for c in self.collection.find({}, {'game_id': 1})]
