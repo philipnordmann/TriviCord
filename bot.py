@@ -4,7 +4,7 @@ import re
 import sys
 from argparse import ArgumentParser
 
-from discord import DiscordException
+from discord import DiscordException, Embed
 from discord.ext import commands
 
 from jeopardy import JeopardyGame, TriviaGame, DatabaseGame, CustomGame
@@ -26,12 +26,47 @@ async def on_ready():
     logging.info(f'{bot.user.name} has connected to Discord!')
 
 
+@bot.event
+async def on_reaction_add(reaction, user):
+    logging.debug('reaction added')
+    if not user.bot:
+        game_data = db.get_game(reaction.message.guild.id)
+        if game_data:
+            if reaction.emoji == '\U0001f3ae':
+                if user.name not in [p['name'] for p in game_data['players']]:
+                    game_data['players'].append({'name': user.name, 'points': 0})
+                    db.save_game(reaction.message.guild.id, game_data)
+                    message = 'Welcome to the game {player}!'.format(player=user.name)
+                    logging.debug('player {} joined the game {}'.format(user.name, reaction.message.guild.id))
+
+                    await reaction.message.channel.send(message)
+
+
+@bot.event
+async def on_reaction_remove(reaction, user):
+    logging.debug('reaction removed')
+    if not user.bot:
+        game_data = db.get_game(reaction.message.guild.id)
+        if game_data:
+            if reaction.emoji == '\U0001f3ae':
+                if user.name in [p['name'] for p in game_data['players']]:
+                    for i, player in enumerate(game_data['players']):
+                        if player['name'] == user.name:
+                            game_data['players'].pop(i)
+                    db.save_game(reaction.message.guild.id, game_data)
+                    message = 'Ok {player}, you are not longer in the game.'.format(player=user.name)
+                    logging.debug('player {} removed from the game {}'.format(user.name, reaction.message.guild.id))
+
+                    await reaction.message.channel.send(message)
+
+
 @bot.command(name='start', help='Starts a game of jeopardy')
 async def start(ctx, data_source='trivia'):
     game_data = db.get_game(ctx.guild.id)
     if not game_data:
 
         await ctx.send('welcome to jeopardy discord edition, please give me a second to gather some clues...')
+        await ctx.trigger_typing()
         game_data = dict()
 
         if data_source.lower() == 'jeopardy':
@@ -56,17 +91,18 @@ async def start(ctx, data_source='trivia'):
 
         game_data['game'] = game
         game_data['players'] = list()
-        game_data['players'].append({'name': ctx.author.name, 'points': 0})
+        # game_data['players'].append({'name': ctx.author.name, 'points': 0})
         game_data['active_player'] = None
         game_data['objection_possible'] = False
         message = '```{board}```'.format(board=game_data['game'].get_board())
         message += players_str.format(players='\n'.join(['- ' + p['name'] for p in game_data['players']]))
-        message += '\n\nto add more players, each player may send !enter'
+        message += '\n\nto add more players, each player may send !enter or add the \U0001f3ae reaction'
         db.save_game(ctx.guild.id, game_data)
+        send_message = await ctx.send(message)
+        await send_message.add_reaction('\U0001f3ae')
     else:
         message = "There is already a game running. Type !end to end the game."
-
-    await ctx.send(message)
+        await ctx.send(message)
 
 
 @bot.command(name='enter', help='enter the game')
@@ -227,6 +263,33 @@ async def objection(ctx):
 
     await ctx.send(message)
 
+'''
+@bot.command(name='test', help='tests some stuff')
+async def test(ctx):
+    embed_var = Embed(title="Title", description="Desc", color=0x00ff00)
+    embed_var.add_field(name="Field1", value="hi", inline=False)
+    embed_var.add_field(name="Field2", value="hi2", inline=True)
+
+    message = await ctx.send(embed=embed_var)
+    logging.debug(str(message))
+    for emoji in ['1️⃣', '2️⃣', '3️⃣', '4️⃣']:
+        await message.add_reaction(emoji)
+
+    def check(reaction_, user_):
+        return not user_.bot and reaction_.emoji in ['1️⃣', '2️⃣', '3️⃣', '4️⃣']
+
+    reaction, user = await bot.wait_for('reaction_add', check=check)
+    print(str(reaction.emoji), user)
+
+
+def create_embed(title, description, field_values):
+    embed = Embed(title=title, description=description, color=0x00ff00)
+
+    for field, value in field_values:
+        embed.add_field(name=field, value=value, inline=False)
+
+    return embed
+'''
 
 def answer_filter(answer):
     for regex, sub in answer_regex_filter:
