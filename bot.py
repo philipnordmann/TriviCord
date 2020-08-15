@@ -4,7 +4,7 @@ import re
 import sys
 from argparse import ArgumentParser
 
-from discord import DiscordException, Embed
+from discord import DiscordException
 from discord.ext import commands
 
 from jeopardy import JeopardyGame, TriviaGame, DatabaseGame, CustomGame
@@ -263,6 +263,7 @@ async def objection(ctx):
 
     await ctx.send(message)
 
+
 '''
 @bot.command(name='test', help='tests some stuff')
 async def test(ctx):
@@ -290,6 +291,7 @@ def create_embed(title, description, field_values):
 
     return embed
 '''
+
 
 def answer_filter(answer):
     for regex, sub in answer_regex_filter:
