@@ -17,6 +17,8 @@ answer_regex_filter = [
 players_str = 'Currently these people are registered:\n{players}'
 no_game_running = "You don't have any games running. Maybe try starting one with !start"
 
+point_emoji_list = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣']
+
 bot = commands.Bot(command_prefix='!')
 db = None
 
@@ -65,7 +67,7 @@ async def start(ctx, data_source='trivia'):
     game_data = db.get_game(ctx.guild.id)
     if not game_data:
 
-        await ctx.send('welcome to jeopardy discord edition, please give me a second to gather some clues...')
+        await ctx.send('welcome to TriviCord, please give me a second to gather some questions...')
         await ctx.trigger_typing()
         game_data = dict()
 
@@ -147,7 +149,7 @@ async def choose(ctx, category: int, value: int):
             message = 'Here comes your question:\n' + game.get_new_question(category, value)
             game_data['active_player'] = ctx.author.name
         else:
-            message = 'That clue was already chosen, please select another one from the list\n```{board}```' \
+            message = 'That question was already chosen, please select another one from the list\n```{board}```' \
                 .format(board=game.get_board())
         db.save_game(ctx.guild.id, game_data)
     else:
@@ -230,9 +232,13 @@ async def get_points(ctx):
 async def end(ctx):
     game_data = db.get_game(ctx.guild.id)
     if game_data:
-        message = 'Ending your game now...'
-        await get_points(ctx)
+        player_list = sorted(game_data['players'], key=lambda p: p['points'], reverse=True)
+        message = f'Congratulations **{player_list[0]["name"]}**, you have won the match with a score of **{player_list[0]["points"]}**!\U0001f389\U0001f389\U0001f389'
+        message += '\n\n'
+        for i, player in enumerate(player_list[:9]):
+            message += f"{point_emoji_list[i]} {player['name']} ({player['points']})\n"
         db.delete_game(ctx.guild.id)
+        message += '\nEnding your game now'
     else:
         message = no_game_running
 
